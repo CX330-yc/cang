@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>记账排班工资助手</title>
+    <meta name="theme-color" content="#10b981">
+    <!-- 强制不缓存 核心更新配置 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #f5f5f7;
+            min-height: 100vh;
+            padding-bottom: 85px;
+        }
+        #bgOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.15;
+        }
+        .page {
+            display: none;
+            padding: 16px;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+        .page.active {
+            display: block;
+        }
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 65px;
+            background: rgba(255,255,255,0.98);
+            backdrop-filter: blur(10px);
+            display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 9999;
+            padding-bottom: 10px;
+        }
+        .tab-item {
+            flex: 1;
+            text-align: center;
+            padding-top: 12px;
+            font-size: 14px;
+            color: #888;
+            cursor: pointer;
+        }
+        .tab-item.active {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .header-card {
+            background: linear-gradient(135deg, #10b981, #0d9488);
+            border-radius: 16px;
+            padding: 24px;
+            color: white;
+            margin-bottom: 16px;
+        }
+        .header-card h2 {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        .time-range {
+            text-align: center;
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 16px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3,1fr);
+            gap:10px;
+            text-align:center;
+        }
+        .stats-grid p:first-child {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+        .stats-grid p:last-child {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .dimension-switch,.type-switch {
+            display:flex;
+            border-radius:8px;
+            overflow:hidden;
+            margin-bottom:15px;
+        }
+        .dimension-btn,.type-btn {
+            flex:1;
+            padding:12px;
+            border:none;
+            font-weight:bold;
+            font-size:16px;
+            cursor: pointer;
+        }
+        .dimension-btn.active {background:#10b981;color:#fff;}
+        .dimension-btn:not(.active) {background:#eee;color:#666;}
+        .type-btn.expense.active {background:#ef4444;color:#fff;}
+        .type-btn.income.active {background:#22c55e;color:#fff;}
+        .type-btn:not(.active) {background:#eee;color:#666;}
+        .form-group {margin-bottom:15px;}
+        .form-group label {
+            display:block;
+            font-size:14px;
+            color:#444;
+            margin-bottom:6px;
+        }
+        .form-input {
+            width:100%;
+            padding:14px;
+            border:1px solid #ddd;
+            border-radius:8px;
+            font-size:16px;
+            background: rgba(255,255,255,0.9);
+            cursor: pointer;
+        }
+        .date-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .today-btn {
+            padding: 14px 16px;
+            background-color: #eee;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .save-btn {
+            width:100%;
+            padding:14px;
+            background:#10b981;
+            color:#fff;
+            border:none;
+            border-radius:8px;
+            font-size:17px;
+            font-weight:bold;
+            cursor: pointer;
+        }
+        .record-item {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:14px 0;
+            border-bottom:1px solid #f2f2f2;
+        }
+        .record-item:last-child {border:none;}
+        .amount-expense {color:#ef4444;font-weight:bold;}
+        .amount-income {color:#22c55e;font-weight:bold;}
+        .delete-btn {
+            color:#bbb;
+            border:none;
+            background:none;
+            font-size:18px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        .empty-text {
+            text-align:center;
+            color:#999;
+            padding:30px 0;
+            font-size:14px;
+        }
+        .schedule-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 0;
+            overflow: hidden;
+        }
+        .schedule-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .schedule-head button {
+            border: none;
+            background: none;
+            font-size: 22px;
+            color: #333;
+            padding: 0 10px;
+            cursor: pointer;
+        }
+        .schedule-title {
+            font-size: 17px;
+            font-weight: 400;
+            color: #333;
+        }
+        .week-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .week-text {
+            font-size: 13px;
+            color: #999;
+            font-weight: 400;
+        }
+        .day-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0;
+        }
+        .day-item {
+            aspect-ratio: 1/1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 400;
+            color: #333;
+            border-right: 1px solid #f0f0f0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .day-item:nth-child(7n) {border-right: none;}
+        .day-item.today {
+            background-color: #f0f9ff;
+            color: #007aff;
+        }
+        .shift-text {
+            font-size: 11px;
+            margin-top: 3px;
+            font-weight: 400;
+        }
+        .shift-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            text-align: center;
+        }
+        .stat-item small {
+            font-size: 12px;
+            color: #999;
+            display: block;
+        }
+        .stat-item span {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .salary-result {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            border-radius: 14px;
+            margin-bottom: 16px;
+        }
+        .salary-result h3 {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+        .salary-result .total {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .salary-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .salary-detail-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .salary-detail-item small {
+            font-size: 12px;
+            opacity: 0.8;
+            display: block;
+        }
+        .salary-detail-item span {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .subsidy-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f2f2f2;
+        }
+        .subsidy-item:last-child {border-bottom: none;}
+        .popup {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            display: none;
+            z-index: 10000;
+        }
+        .popup-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            padding: 20px;
+            border-radius: 16px 16px 0 0;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .popup.show { display: block; }
+        .popup-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            border: none;
+            background: none;
+            font-size: 22px;
+            color: #888;
+            cursor: pointer;
+            padding: 5px;
+        }
+        .shift-option {
+            padding: 18px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 16px;
+            font-weight: 400;
+            cursor: pointer;
+        }
+        .shift-option:last-child { border-bottom: none; }
+        .popup-nav{
+            display:flex;
+            justify-content:space-between;
+            margin-bottom:10px;
+        }
+        .popup-nav button{
+            border:none;
+            background:#f1f1f1;
+            padding:6px 12px;
+            border-radius:6px;
+            font-size:14px;
+        }
+        .backup-btn {
+            width:100%;
+            padding:16px;
+            background:#3b82f6;
+            color:#fff;
+            border:none;
+            border-radius:10px;
+            font-size:16px;
+            margin-bottom:12px;
+            cursor: pointer;
+        }
+        .restore-btn {
+            width:100%;
+            padding:16px;
+            background:#f59e0b;
+            color:#fff;
+            border:none;
+            border-radius:10px;
+            font-size:16px;
+            cursor: pointer;
+        }
+        .tip-text {
+            color:#999;
+            font-size:13px;
+            margin-top:10px;
+            line-height:1.6;
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f2f2f2;
+        }
+        .setting-item:last-child { border-bottom: none; }
+        .setting-btn {
+            padding:10px 16px;
+            background:#f1f1f1;
+            border:none;
+            border-radius:8px;
+            font-size:14px;
+            cursor: pointer;
+        }
+        .opacity-slider {
+            width: 150px;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+        }
+        .opacity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #10b981;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .shift-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f2f2f2;
+        }
+        .shift-list-item:last-child { border-bottom: none; }
+        .shift-edit-btn {
+            border: none;
+            background: none;
+            color: #007aff;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        .shift-delete-btn {
+            border: none;
+            background: none;
+            color: #ff3b30;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 10px;
+        }
+        /* 新增：薪资月份选择器样式 */
+        .salary-month-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 14px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .salary-month-head button {
+            border: none;
+            background: none;
+            font-size: 22px;
+            color: #333;
+            padding: 0 10px;
+            cursor: pointer;
+        }
+        .salary-month-title {
+            font-size: 17px;
+            font-weight: 500;
+            color: #333;
+        }
+        /* 新增：更新提示弹窗样式 */
+        .update-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            width: 85%;
+            max-width: 320px;
+            z-index: 10001;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+        }
+        .update-popup h3 {
+            text-align: center;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+        .update-popup p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .update-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .update-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .update-now {
+            background: #10b981;
+            color: white;
+        }
+        .update-later {
+            background: #eee;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="bgOverlay"></div>
+    <!-- 新增：更新提示弹窗 -->
+    <div class="update-popup" id="updatePopup">
+        <h3>🎉 发现新版本</h3>
+        <p id="updateDesc">有新功能上线，建议立即更新</p>
+        <div class="update-buttons">
+            <button class="update-btn update-later" id="updateLater">稍后再说</button>
+            <button class="update-btn update-now" id="updateNow">立即更新</button>
+        </div>
+    </div>
+
+<div class="page active" id="pageSchedule">
+    <div class="schedule-card">
+        <div class="schedule-head">
+            <button id="prevMonth">←</button>
+            <div class="schedule-title" id="scheduleTitle">2026年5月</div>
+            <button id="nextMonth">→</button>
+        </div>
+        <div class="shift-stats">
+            <div class="stat-item">
+                <small>总上班</small>
+                <span id="totalDays">0</span>
+            </div>
+            <div class="stat-item">
+                <small>白班</small>
+                <span id="dayShiftDays">0</span>
+            </div>
+            <div class="stat-item">
+                <small>夜班</small>
+                <span id="nightShiftDays">0</span>
+            </div>
+            <div class="stat-item">
+                <small>休息</small>
+                <span id="restDays">0</span>
+            </div>
+        </div>
+        <div class="week-row">
+            <span class="week-text">日</span>
+            <span class="week-text">一</span>
+            <span class="week-text">二</span>
+            <span class="week-text">三</span>
+            <span class="week-text">四</span>
+            <span class="week-text">五</span>
+            <span class="week-text">六</span>
+        </div>
+        <div class="day-grid" id="dayGrid"></div>
+    </div>
+    <button class="save-btn" style="margin-top:15px;background:#ff4444" id="clearAllMonthShift">一键清空本月所有班次</button>
+</div>
+
+<div class="page" id="pageAccount">
+    <div class="header-card">
+        <h2>💰 我的记账本</h2>
+        <p class="time-range" id="timeRange">今日账单</p>
+        <div class="stats-grid">
+            <div>
+                <p>收入</p>
+                <p id="totalIncome">¥0.00</p>
+            </div>
+            <div>
+                <p>支出</p>
+                <p id="totalExpense">¥0.00</p>
+            </div>
+            <div>
+                <p>结余</p>
+                <p id="totalBalance">¥0.00</p>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="dimension-switch">
+            <button class="dimension-btn active" id="dayBtn">日</button>
+            <button class="dimension-btn" id="monthBtn">月</button>
+            <button class="dimension-btn" id="yearBtn">年</button>
+        </div>
+        <div class="date-row">
+            <input type="date" class="form-input" id="datePicker">
+            <button class="today-btn" id="todayBtn">今天</button>
+        </div>
+    </div>
+    <div class="card">
+        <div class="type-switch">
+            <button class="type-btn expense active" id="expenseBtn">支出</button>
+            <button class="type-btn income" id="incomeBtn">收入</button>
+        </div>
+        <div class="form-group">
+            <label>金额</label>
+            <input type="number" class="form-input" id="amount" placeholder="输入金额" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>分类</label>
+            <select class="form-input" id="category"></select>
+        </div>
+        <div class="form-group">
+            <label>备注（可选）</label>
+            <input type="text" class="form-input" id="note" placeholder="简单备注">
+        </div>
+        <button class="save-btn" id="saveBtn">保存记录</button>
+    </div>
+    <div class="card">
+        <h3 class="font-bold mb-3" id="recordsTitle">📋 今日记录</h3>
+        <div id="recordsList">
+            <p class="empty-text">暂无记录，开始记账吧</p>
+        </div>
+    </div>
+</div>
+
+<div class="page" id="pageSalary">
+    <!-- 新增：薪资月份选择器 -->
+    <div class="salary-month-head">
+        <button id="prevSalaryMonth">←</button>
+        <div class="salary-month-title" id="salaryMonthTitle">2026年5月 薪资</div>
+        <button id="nextSalaryMonth">→</button>
+    </div>
+
+    <div class="salary-result">
+        <h3>本月预计薪资</h3>
+        <div class="total" id="totalSalary">¥0.00</div>
+        <div class="salary-detail">
+            <div class="salary-detail-item">
+                <small>基本工资</small>
+                <span id="baseSalary">¥0.00</span>
+            </div>
+            <div class="salary-detail-item">
+                <small>总补贴</small>
+                <span id="totalSubsidy">¥0.00</span>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <h3 class="font-bold mb-3">薪资设置</h3>
+        <div class="form-group">
+            <label>月基本工资（元）</label>
+            <input type="number" class="form-input" id="baseSalaryInput" placeholder="如：6000" value="6000">
+        </div>
+        <div class="form-group">
+            <label>月标准工作天数</label>
+            <input type="number" class="form-input" id="workDaysInput" placeholder="如：22" value="22">
+        </div>
+        <div class="form-group">
+            <label>日工作小时数</label>
+            <input type="number" class="form-input" id="workHoursInput" placeholder="如：8" value="8">
+        </div>
+        <div class="salary-detail" style="margin-top: 16px;">
+            <div class="salary-detail-item" style="background: #f5f5f7; color: #333;">
+                <small>日薪</small>
+                <span id="dailySalary">¥0.00</span>
+            </div>
+            <div class="salary-detail-item" style="background: #f5f5f7; color: #333;">
+                <small>时薪</small>
+                <span id="hourlySalary">¥0.00</span>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <h3 class="font-bold mb-3">补贴设置</h3>
+        <div class="subsidy-item">
+            <span>夜班补贴（元/天）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="nightSubsidy" placeholder="0" value="30">
+        </div>
+        <div class="subsidy-item">
+            <span>全勤奖（元）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="fullAttendance" placeholder="0" value="200">
+        </div>
+        <div class="subsidy-item">
+            <span>房租补贴（元）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="rentSubsidy" placeholder="0" value="0">
+        </div>
+        <div class="subsidy-item">
+            <span>餐补（元）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="mealSubsidy" placeholder="0" value="0">
+        </div>
+        <div class="subsidy-item">
+            <span>交通补贴（元）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="trafficSubsidy" placeholder="0" value="0">
+        </div>
+        <div class="subsidy-item">
+            <span>高温补贴（元）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="heatSubsidy" placeholder="0" value="0">
+        </div>
+        <div class="subsidy-item">
+            <span>其他补贴（元）</span>
+            <input type="number" class="form-input" style="width: 100px;" id="otherSubsidy" placeholder="0" value="0">
+        </div>
+        <button class="save-btn" style="margin-top: 16px;" id="calculateSalaryBtn">重新计算薪资</button>
+    </div>
+</div>
+
+<div class="page" id="pageBackup">
+    <div class="card">
+        <h3 class="font-bold text-lg mb-4">💾 数据备份与恢复</h3>
+        <button class="backup-btn" id="backupBtn">手动备份全部数据</button>
+        <input type="file" id="fileRestore" style="display:none" accept=".json">
+        <button class="restore-btn" id="restoreBtn">恢复备份数据</button>
+        <p class="tip-text">
+            ✅ 备份：自动打包【所有记账+排班+班次+工资设置】<br>
+            ✅ 恢复：选择备份文件一键还原<br>
+            ✅ 所有数据本地保存，不上网
+        </p>
+    </div>
+</div>
+
+<div class="page" id="pageSetting">
+    <div class="card">
+        <h3 class="font-bold text-lg mb-4">⚙️ 个性化设置</h3>
+        <div class="setting-item">
+            <span>自定义背景</span>
+            <input type="file" id="bgFile" style="display:none" accept="image/*">
+            <button class="setting-btn" id="selectBgBtn">选择图片</button>
+        </div>
+        <div class="setting-item">
+            <span>背景透明度</span>
+            <input type="range" class="opacity-slider" id="bgOpacity" min="0" max="100" value="15">
+        </div>
+        <button class="setting-btn" id="resetBgBtn" style="width:100%; margin-bottom:20px;">恢复默认背景</button>
+        <h4 class="font-bold mt-4 mb-3">班次管理</h4>
+        <div id="shiftList"></div>
+        <button class="setting-btn" id="addShiftBtn" style="width:100%;">+ 添加新班次</button>
+    </div>
+</div>
+
+<div class="popup" id="shiftPopup">
+    <div class="popup-content">
+        <button class="close-btn" id="closeShiftPopup">✕</button>
+        <div class="popup-nav">
+            <button id="prevDayBtn">← 上一天</button>
+            <div class="popup-title">选择班次</div>
+            <button id="nextDayBtn">下一天 →</button>
+        </div>
+        <div id="shiftOptions"></div>
+    </div>
+</div>
+
+<div class="popup" id="editShiftPopup">
+    <div class="popup-content">
+        <div class="popup-title" id="editShiftTitle">编辑班次</div>
+        <button class="close-btn" id="closeEditPopup">✕</button>
+        <div class="form-group">
+            <label>班次名称</label>
+            <input type="text" class="form-input" id="editShiftName" placeholder="如：早班">
+        </div>
+        <div class="form-group">
+            <label>上班时间</label>
+            <input type="time" class="form-input" id="editShiftStart">
+        </div>
+        <div class="form-group">
+            <label>下班时间</label>
+            <input type="time" class="form-input" id="editShiftEnd">
+        </div>
+        <div class="form-group">
+            <label>显示颜色</label>
+            <input type="color" class="form-input" id="editShiftColor" value="#007aff">
+        </div>
+        <button class="save-btn" id="saveShiftBtn">保存</button>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <div class="tab-item active" data-page="pageSchedule">排班</div>
+    <div class="tab-item" data-page="pageAccount">记账</div>
+    <div class="tab-item" data-page="pageSalary">工资</div>
+    <div class="tab-item" data-page="pageBackup">备份</div>
+    <div class="tab-item" data-page="pageSetting">设置</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+// ====================== 新增：版本与更新配置 ======================
+const CURRENT_VERSION = "1.1.0"; // 每次更新改这个数字
+const VERSION_CHECK_URL = "https://你的名字.github.io/version.json"; // 替换成你的托管地址
+
+// 版本检测函数
+async function checkUpdate() {
+    try {
+        const response = await fetch(VERSION_CHECK_URL + '?t=' + Date.now(), {cache: 'no-store'});
+        const data = await response.json();
+        
+        if (data.version > CURRENT_VERSION) {
+            document.getElementById('updateDesc').textContent = data.desc || "有新功能上线，建议立即更新";
+            document.getElementById('updatePopup').style.display = 'block';
+        }
+    } catch (e) {
+        // 没网或请求失败不提示，不影响使用
+        console.log("版本检测失败，可能无网络");
+    }
+}
+
+// 更新按钮事件
+document.getElementById('updateNow').addEventListener('click', () => {
+    location.reload(true); // 强制刷新
+});
+
+document.getElementById('updateLater').addEventListener('click', () => {
+    document.getElementById('updatePopup').style.display = 'none';
+});
+// =================================================================
+
+let currentType = 'expense';
+let currentDimension = 'day';
+let selectedDate = new Date();
+let records = JSON.parse(localStorage.getItem('accountRecords') || '[]');
+let scheduleData = JSON.parse(localStorage.getItem('scheduleData') || '{}');
+
+// 排班页月份
+let scheduleYear = new Date().getFullYear();
+let scheduleMonth = new Date().getMonth();
+
+// 新增：薪资页独立月份
+let salaryYear = new Date().getFullYear();
+let salaryMonth = new Date().getMonth();
+
+let selectDayNow = 0;
+let salarySettings = JSON.parse(localStorage.getItem('salarySettings') || JSON.stringify({
+    baseSalary: 6000,workDays:22,workHours:8,nightSubsidy:30,fullAttendance:200,
+    rentSubsidy:0,mealSubsidy:0,trafficSubsidy:0,heatSubsidy:0,otherSubsidy:0
+}));
+let shifts = JSON.parse(localStorage.getItem('customShifts') || JSON.stringify([
+    {name:'休息',start:'',end:'',color:'#34c759'},
+    {name:'白班',start:'08:00',end:'16:00',color:'#007aff'},
+    {name:'夜班',start:'20:00',end:'08:00',color:'#ff3b30'},
+    {name:'请假',start:'',end:'',color:'#ff9500'}
+]));
+const expenseCategories = [
+    {value:'餐饮',label:'🍔餐饮'},{value:'交通',label:'🚗交通'},
+    {value:'购物',label:'🛒购物'},{value:'娱乐',label:'🎮娱乐'},
+    {value:'医疗',label:'💊医疗'},{value:'居住',label:'🏠居住'},
+    {value:'通讯',label:'📱通讯'},{value:'其他',label:'📦其他'}
+];
+const incomeCategories = [
+    {value:'工资',label:'💼工资'},{value:'奖金',label:'🎁奖金'},
+    {value:'兼职',label:'💻兼职'},{value:'投资',label:'📈投资'},
+    {value:'红包',label:'🧧红包'},{value:'其他',label:'📦其他'}
+];
+
+document.querySelectorAll('.tab-item').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+        let p=tab.dataset.page;
+        document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+        document.getElementById(p).classList.add('active');
+        document.querySelectorAll('.tab-item').forEach(x=>x.classList.remove('active'));
+        tab.classList.add('active');
+        if(p==='pageSchedule')renderSchedule();
+        if(p==='pageSalary'){
+            updateSalaryMonthTitle();
+            calculateSalary();
+        }
+        if(p==='pageSetting')renderShiftList();
+    })
+})
+
+function formatDateForInput(date){
+    let y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+}
+
+function updateCategoryOptions(list){
+    let sel=document.getElementById('category');
+    sel.innerHTML='';
+    list.forEach(c=>{
+        let o=document.createElement('option');
+        o.value=c.value;o.textContent=c.label;sel.appendChild(o);
+    })
+}
+
+function updateTimeRange(){
+    let y=selectedDate.getFullYear(),m=selectedDate.getMonth()+1,d=selectedDate.getDate();
+    if(currentDimension==='day'){
+        document.getElementById('timeRange').textContent=`${y}年${m}月${d}日 账单`;
+        document.getElementById('recordsTitle').textContent=`📋 ${m}月${d}日 记录`;
+    }else if(currentDimension==='month'){
+        document.getElementById('timeRange').textContent=`${y}年${m}月 账单`;
+        document.getElementById('recordsTitle').textContent=`📋 ${m}月 记录`;
+    }else{
+        document.getElementById('timeRange').textContent=`${y}年 账单`;
+        document.getElementById('recordsTitle').textContent=`📋 ${y}年 记录`;
+    }
+}
+
+function isRecordInRange(d){
+    let r=new Date(d),s=selectedDate;
+    if(currentDimension==='day')return r.getFullYear()==s.getFullYear()&&r.getMonth()==s.getMonth()&&r.getDate()==s.getDate();
+    if(currentDimension==='month')return r.getFullYear()==s.getFullYear()&&r.getMonth()==s.getMonth();
+    return r.getFullYear()==s.getFullYear();
+}
+
+function updateDimensionButtons(){
+    document.getElementById('dayBtn').classList.toggle('active',currentDimension==='day');
+    document.getElementById('monthBtn').classList.toggle('active',currentDimension==='month');
+    document.getElementById('yearBtn').classList.toggle('active',currentDimension==='year');
+}
+
+function calculateStats(){
+    let f=records.filter(x=>isRecordInRange(x.date));
+    let inco=0,exp=0;
+    f.forEach(x=>x.type==='income'?inco+=x.amount:exp+=x.amount);
+    let bal=inco-exp;
+    document.getElementById('totalIncome').textContent=`¥${inco.toFixed(2)}`;
+    document.getElementById('totalExpense').textContent=`¥${exp.toFixed(2)}`;
+    document.getElementById('totalBalance').textContent=`¥${bal.toFixed(2)}`;
+    document.getElementById('totalBalance').style.color=bal<0?'#ef4444':'#fff';
+}
+
+function renderRecords(){
+    let list=document.getElementById('recordsList');
+    let f=records.filter(x=>isRecordInRange(x.date));
+    if(!f.length){list.innerHTML='<p class="empty-text">暂无记录，开始记账吧</p>';return;}
+    list.innerHTML='';
+    f.forEach(r=>{
+        let isExp=r.type==='expense';
+        let cls=isExp?'amount-expense':'amount-income';
+        let pre=isExp?'-':'+';
+        let rd=new Date(r.date);
+        let ds=currentDimension==='day'?rd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+        :`${rd.getMonth()+1}/${rd.getDate()} ${rd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+        let div=document.createElement('div');
+        div.className='record-item';
+        div.innerHTML=`<div class="record-left"><div class="font-medium">${r.category}</div><div class="text-xs text-gray-400">${ds}${r.note?' · '+r.note:''}</div></div>
+        <div class="record-right"><span class="${cls}">${pre}¥${r.amount.toFixed(2)}</span><button class="delete-btn" data-id="${r.id}">✕</button></div>`;
+        list.appendChild(div);
+    })
+    document.querySelectorAll('.delete-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            if(confirm('删除这条记录？')){
+                let id=parseInt(btn.dataset.id);
+                records=records.filter(x=>x.id!==id);
+                localStorage.setItem('accountRecords',JSON.stringify(records));
+                renderRecords();calculateStats();
+            }
+        })
+    })
+}
+
+document.getElementById('expenseBtn').addEventListener('click',()=>{
+    currentType='expense';
+    document.getElementById('expenseBtn').classList.add('active');
+    document.getElementById('incomeBtn').classList.remove('active');
+    updateCategoryOptions(expenseCategories);
+})
+
+document.getElementById('incomeBtn').addEventListener('click',()=>{
+    currentType='income';
+    document.getElementById('incomeBtn').classList.add('active');
+    document.getElementById('expenseBtn').classList.remove('active');
+    updateCategoryOptions(incomeCategories);
+})
+
+document.getElementById('dayBtn').addEventListener('click',()=>{currentDimension='day';updateDimensionButtons();updateTimeRange();calculateStats();renderRecords()})
+document.getElementById('monthBtn').addEventListener('click',()=>{currentDimension='month';updateDimensionButtons();updateTimeRange();calculateStats();renderRecords()})
+document.getElementById('yearBtn').addEventListener('click',()=>{currentDimension='year';updateDimensionButtons();updateTimeRange();calculateStats();renderRecords()})
+
+document.getElementById('datePicker').addEventListener('change',(e)=>{selectedDate=new Date(e.target.value);updateTimeRange();calculateStats();renderRecords()})
+document.getElementById('todayBtn').addEventListener('click',()=>{selectedDate=new Date();document.getElementById('datePicker').value=formatDateForInput(selectedDate);updateTimeRange();calculateStats();renderRecords()})
+
+document.getElementById('saveBtn').addEventListener('click',()=>{
+    let num=parseFloat(document.getElementById('amount').value);
+    let cat=document.getElementById('category').value;
+    let note=document.getElementById('note').value.trim();
+    if(isNaN(num)||num<=0){alert('请输入有效金额');return;}
+    let obj={id:Date.now(),type:currentType,amount:num,category:cat,note:note,date:new Date().toLocaleString()};
+    records.unshift(obj);
+    localStorage.setItem('accountRecords',JSON.stringify(records));
+    document.getElementById('amount').value='';document.getElementById('note').value='';
+    renderRecords();calculateStats();
+})
+
+const shiftPopup = document.getElementById('shiftPopup');
+const shiftOptionsContainer = document.getElementById('shiftOptions');
+
+function renderShiftOptions(){
+    shiftOptionsContainer.innerHTML='';
+    shifts.forEach(shift=>{
+        let div=document.createElement('div');
+        div.className='shift-option';
+        div.dataset.shift=shift.name;
+        div.textContent=shift.name+(shift.start?` (${shift.start}-${shift.end})`:'');
+        div.style.color=shift.color;
+        shiftOptionsContainer.appendChild(div);
+    })
+}
+
+// 新增：通用获取指定月份班次统计函数
+function getMonthShiftStats(year, month) {
+    let dayShiftDays=0, nightShiftDays=0;
+    let totalDaysInMonth=new Date(year, month+1, 0).getDate();
+    
+    for(let d=1;d<=totalDaysInMonth;d++){
+        let key=`${year}-${month+1}-${d}`;
+        let name=scheduleData[key]||'';
+        if(name==='白班') dayShiftDays++;
+        else if(name==='夜班') nightShiftDays++;
+    }
+    
+    return { dayShiftDays, nightShiftDays };
+}
+
+function calculateShiftStats(){
+    let totalDays=0,dayShiftDays=0,nightShiftDays=0,restDays=0;
+    let totalDaysInMonth=new Date(scheduleYear,scheduleMonth+1,0).getDate();
+    for(let d=1;d<=totalDaysInMonth;d++){
+        let key=`${scheduleYear}-${scheduleMonth+1}-${d}`;
+        let name=scheduleData[key]||'';
+        if(name){
+            totalDays++;
+            if(name==='白班')dayShiftDays++;
+            else if(name==='夜班')nightShiftDays++;
+            else if(name==='休息')restDays++;
+        }
+    }
+    document.getElementById('totalDays').textContent=totalDays;
+    document.getElementById('dayShiftDays').textContent=dayShiftDays;
+    document.getElementById('nightShiftDays').textContent=nightShiftDays;
+    document.getElementById('restDays').textContent=restDays;
+}
+
+function updatePopupTitle(){
+    document.querySelector('#shiftPopup .popup-title').textContent=`选择 ${scheduleMonth+1}月${selectDayNow}日 班次`;
+}
+
+function renderSchedule(){
+    document.getElementById('scheduleTitle').innerText=`${scheduleYear}年${scheduleMonth+1}月`;
+    let firstDay=new Date(scheduleYear,scheduleMonth,1).getDay();
+    let totalDays=new Date(scheduleYear,scheduleMonth+1,0).getDate();
+    let grid=document.getElementById('dayGrid');
+    grid.innerHTML='';
+    for(let i=0;i<firstDay;i++){
+        let empty=document.createElement('div');
+        empty.className='day-item';
+        grid.appendChild(empty);
+    }
+    let now=new Date();
+    let isThisMonth=now.getFullYear()===scheduleYear&&now.getMonth()===scheduleMonth;
+    let today=now.getDate();
+    for(let d=1;d<=totalDays;d++){
+        let dayDom=document.createElement('div');
+        dayDom.className='day-item';
+        if(isThisMonth&&d===today)dayDom.classList.add('today');
+        let key=`${scheduleYear}-${scheduleMonth+1}-${d}`;
+        let sName=scheduleData[key]||'';
+        let s=shifts.find(x=>x.name===sName);
+        dayDom.innerHTML=`<div>${d}</div><div class="shift-text" style="color:${s?s.color:'#666'}">${sName}</div>`;
+        dayDom.addEventListener('click',()=>{
+            selectDayNow=d;
+            updatePopupTitle();
+            renderShiftOptions();
+            shiftPopup.classList.add('show');
+        })
+        grid.appendChild(dayDom);
+    }
+    calculateShiftStats();
+}
+
+shiftOptionsContainer.addEventListener('click',function(e){
+    let item=e.target.closest('.shift-option');
+    if(!item)return;
+    let name=item.dataset.shift;
+    let key=`${scheduleYear}-${scheduleMonth+1}-${selectDayNow}`;
+    scheduleData[key]=name;
+    localStorage.setItem('scheduleData',JSON.stringify(scheduleData));
+    renderSchedule();
+    selectDayNow++;
+    let maxDay=new Date(scheduleYear,scheduleMonth+1,0).getDate();
+    if(selectDayNow<=maxDay){
+        updatePopupTitle();
+        renderShiftOptions();
+    }else{
+        shiftPopup.classList.remove('show');
+    }
+})
+
+document.getElementById('prevDayBtn').addEventListener('click',()=>{
+    selectDayNow--;
+    if(selectDayNow<1)selectDayNow=1;
+    updatePopupTitle();renderShiftOptions();
+})
+
+document.getElementById('nextDayBtn').addEventListener('click',()=>{
+    let max=new Date(scheduleYear,scheduleMonth+1,0).getDate();
+    selectDayNow++;
+    if(selectDayNow>max)selectDayNow=max;
+    updatePopupTitle();renderShiftOptions();
+})
+
+document.getElementById('prevMonth').addEventListener('click',()=>{
+    scheduleMonth--;
+    if(scheduleMonth<0){scheduleMonth=11;scheduleYear--;}
+    renderSchedule();
+})
+
+document.getElementById('nextMonth').addEventListener('click',()=>{
+    scheduleMonth++;
+    if(scheduleMonth>11){scheduleMonth=0;scheduleYear++;}
+    renderSchedule();
+})
+
+document.getElementById('closeShiftPopup').addEventListener('click',()=>shiftPopup.classList.remove('show'));
+shiftPopup.addEventListener('click',e=>{if(e.target===shiftPopup)shiftPopup.classList.remove('show')});
+
+document.getElementById('clearAllMonthShift').addEventListener('click',()=>{
+    if(!confirm('确定清空本月所有班次？不可恢复！'))return;
+    let max=new Date(scheduleYear,scheduleMonth+1,0).getDate();
+    for(let d=1;d<=max;d++){
+        let k=`${scheduleYear}-${scheduleMonth+1}-${d}`;
+        delete scheduleData[k];
+    }
+    localStorage.setItem('scheduleData',JSON.stringify(scheduleData));
+    renderSchedule();
+    alert('✅ 本月班次已全部清空');
+})
+
+// ====================== 新增：薪资月份相关函数 ======================
+function updateSalaryMonthTitle() {
+    document.getElementById('salaryMonthTitle').innerText=`${salaryYear}年${salaryMonth+1}月 薪资`;
+}
+
+// 重写薪资计算函数，支持指定年月
+function calculateSalary(){
+    salarySettings.baseSalary=parseFloat(document.getElementById('baseSalaryInput').value)||0;
+    salarySettings.workDays=parseFloat(document.getElementById('workDaysInput').value)||22;
+    salarySettings.workHours=parseFloat(document.getElementById('workHoursInput').value)||8;
+    salarySettings.nightSubsidy=parseFloat(document.getElementById('nightSubsidy').value)||0;
+    salarySettings.fullAttendance=parseFloat(document.getElementById('fullAttendance').value)||0;
+    salarySettings.rentSubsidy=parseFloat(document.getElementById('rentSubsidy').value)||0;
+    salarySettings.mealSubsidy=parseFloat(document.getElementById('mealSubsidy').value)||0;
+    salarySettings.trafficSubsidy=parseFloat(document.getElementById('trafficSubsidy').value)||0;
+    salarySettings.heatSubsidy=parseFloat(document.getElementById('heatSubsidy').value)||0;
+    salarySettings.otherSubsidy=parseFloat(document.getElementById('otherSubsidy').value)||0;
+    
+    localStorage.setItem('salarySettings',JSON.stringify(salarySettings));
+    
+    let daily=salarySettings.baseSalary/salarySettings.workDays;
+    let hourly=daily/salarySettings.workHours;
+    
+    document.getElementById('dailySalary').textContent=`¥${daily.toFixed(2)}`;
+    document.getElementById('hourlySalary').textContent=`¥${hourly.toFixed(2)}`;
+    
+    // 获取当前薪资页选择月份的班次数据
+    const { dayShiftDays, nightShiftDays } = getMonthShiftStats(salaryYear, salaryMonth);
+    
+    let baseTotal=(dayShiftDays+nightShiftDays)*daily;
+    let nightTotal=nightShiftDays*salarySettings.nightSubsidy;
+    let allSub=nightTotal+salarySettings.fullAttendance+salarySettings.rentSubsidy+
+    salarySettings.mealSubsidy+salarySettings.trafficSubsidy+salarySettings.heatSubsidy+salarySettings.otherSubsidy;
+    let total=baseTotal+allSub;
+    
+    document.getElementById('baseSalary').textContent=`¥${baseTotal.toFixed(2)}`;
+    document.getElementById('totalSubsidy').textContent=`¥${allSub.toFixed(2)}`;
+    document.getElementById('totalSalary').textContent=`¥${total.toFixed(2)}`;
+}
+
+// 薪资页月份切换事件
+document.getElementById('prevSalaryMonth').addEventListener('click',()=>{
+    salaryMonth--;
+    if(salaryMonth<0){salaryMonth=11;salaryYear--;}
+    updateSalaryMonthTitle();
+    calculateSalary();
+})
+
+document.getElementById('nextSalaryMonth').addEventListener('click',()=>{
+    salaryMonth++;
+    if(salaryMonth>11){salaryMonth=0;salaryYear++;}
+    updateSalaryMonthTitle();
+    calculateSalary();
+})
+// =================================================================
+
+document.getElementById('calculateSalaryBtn').addEventListener('click',calculateSalary);
+
+let editingShiftIndex=-1;
+function renderShiftList(){
+    let box=document.getElementById('shiftList');
+    box.innerHTML='';
+    shifts.forEach((s,idx)=>{
+        let div=document.createElement('div');
+        div.className='shift-list-item';
+        div.innerHTML=`<div><span style="color:${s.color};font-weight:500">${s.name}</span>
+        ${s.start?`<span style="font-size:12px;color:#999;margin-left:6px">${s.start}-${s.end}</span>`:''}</div>
+        <div><button class="shift-edit-btn" data-i="${idx}">编辑</button>
+        <button class="shift-delete-btn" data-i="${idx}">删除</button></div>`;
+        box.appendChild(div);
+    })
+    document.querySelectorAll('.shift-edit-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            let i=parseInt(btn.dataset.i);
+            editingShiftIndex=i;
+            let s=shifts[i];
+            document.getElementById('editShiftTitle').textContent='编辑班次';
+            document.getElementById('editShiftName').value=s.name;
+            document.getElementById('editShiftStart').value=s.start;
+            document.getElementById('editShiftEnd').value=s.end;
+            document.getElementById('editShiftColor').value=s.color;
+            document.getElementById('editShiftPopup').classList.add('show');
+        })
+    })
+    document.querySelectorAll('.shift-delete-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            if(!confirm('确定删除该班次？'))return;
+            let i=parseInt(btn.dataset.i);
+            shifts.splice(i,1);
+            localStorage.setItem('customShifts',JSON.stringify(shifts));
+            renderShiftList();renderShiftOptions();
+        })
+    })
+}
+
+document.getElementById('addShiftBtn').addEventListener('click',()=>{
+    editingShiftIndex=-1;
+    document.getElementById('editShiftTitle').textContent='添加新班次';
+    document.getElementById('editShiftName').value='';
+    document.getElementById('editShiftStart').value='';
+    document.getElementById('editShiftEnd').value='';
+    document.getElementById('editShiftColor').value='#007aff';
+    document.getElementById('editShiftPopup').classList.add('show');
+})
+
+document.getElementById('saveShiftBtn').addEventListener('click',()=>{
+    let name=document.getElementById('editShiftName').value.trim();
+    let st=document.getElementById('editShiftStart').value;
+    let et=document.getElementById('editShiftEnd').value;
+    let col=document.getElementById('editShiftColor').value;
+    if(!name){alert('请填写班次名称');return;}
+    let obj={name:name,start:st,end:et,color:col};
+    if(editingShiftIndex===-1)shifts.push(obj);
+    else shifts[editingShiftIndex]=obj;
+    localStorage.setItem('customShifts',JSON.stringify(shifts));
+    document.getElementById('editShiftPopup').classList.remove('show');
+    renderShiftList();renderShiftOptions();renderSchedule();
+})
+
+document.getElementById('closeEditPopup').addEventListener('click',()=>document.getElementById('editShiftPopup').classList.remove('show'));
+document.getElementById('editShiftPopup').addEventListener('click',e=>{if(e.target===document.getElementById('editShiftPopup'))document.getElementById('editShiftPopup').classList.remove('show')});
+
+function loadBg(){
+    let bg=localStorage.getItem('customBackground');
+    let op=localStorage.getItem('bgOpacity')||15;
+    if(bg)document.getElementById('bgOverlay').style.backgroundImage=`url(${bg})`;
+    document.getElementById('bgOverlay').style.opacity=op/100;
+    document.getElementById('bgOpacity').value=op;
+}
+
+document.getElementById('selectBgBtn').addEventListener('click',()=>document.getElementById('bgFile').click());
+document.getElementById('bgFile').addEventListener('change',e=>{
+    let f=e.target.files[0];if(!f)return;
+    let r=new FileReader();
+    r.onload=res=>{
+        let d=res.target.result;
+        document.getElementById('bgOverlay').style.backgroundImage=`url(${d})`;
+        localStorage.setItem('customBackground',d);
+        alert('背景设置成功');
+    }
+    r.readAsDataURL(f);
+})
+
+document.getElementById('bgOpacity').addEventListener('input',e=>{
+    let v=e.target.value;
+    document.getElementById('bgOverlay').style.opacity=v/100;
+    localStorage.setItem('bgOpacity',v);
+})
+
+document.getElementById('resetBgBtn').addEventListener('click',()=>{
+    document.getElementById('bgOverlay').style.backgroundImage='';
+    localStorage.removeItem('customBackground');
+    alert('已恢复默认背景');
+})
+
+document.getElementById('backupBtn').addEventListener('click',()=>{
+    let all={
+        time:new Date().toLocaleString(),
+        account:records,schedule:scheduleData,shifts:shifts,salary:salarySettings,
+        bg:localStorage.getItem('customBackground'),bgOp:localStorage.getItem('bgOpacity')
+    }
+    let str=JSON.stringify(all,null,2);
+    let blob=new Blob([str],{type:'application/json'});
+    let url=URL.createObjectURL(blob);
+    let a=document.createElement('a');
+    a.href=url;a.download=`排班记账工资备份_${new Date().toLocaleDateString()}.json`;
+    a.click();URL.revokeObjectURL(url);
+    alert('备份完成');
+})
+
+document.getElementById('restoreBtn').addEventListener('click',()=>document.getElementById('fileRestore').click());
+document.getElementById('fileRestore').addEventListener('change',e=>{
+    let f=e.target.files[0];if(!f)return;
+    let r=new FileReader();
+    r.onload=res=>{
+        try{
+            let d=JSON.parse(res.target.result);
+            records=d.account||[];scheduleData=d.schedule||{};shifts=d.shifts||shifts;salarySettings=d.salary||salarySettings;
+            if(d.bg)localStorage.setItem('customBackground',d.bg);
+            if(d.bgOp)localStorage.setItem('bgOpacity',d.bgOp);
+            localStorage.setItem('accountRecords',JSON.stringify(records));
+            localStorage.setItem('scheduleData',JSON.stringify(scheduleData));
+            localStorage.setItem('customShifts',JSON.stringify(shifts));
+            localStorage.setItem('salarySettings',JSON.stringify(salarySettings));
+            document.getElementById('baseSalaryInput').value=salarySettings.baseSalary;
+            document.getElementById('workDaysInput').value=salarySettings.workDays;
+            document.getElementById('workHoursInput').value=salarySettings.workHours;
+            document.getElementById('nightSubsidy').value=salarySettings.nightSubsidy;
+            document.getElementById('fullAttendance').value=salarySettings.fullAttendance;
+            document.getElementById('rentSubsidy').value=salarySettings.rentSubsidy;
+            document.getElementById('mealSubsidy').value=salarySettings.mealSubsidy;
+            document.getElementById('trafficSubsidy').value=salarySettings.trafficSubsidy;
+            document.getElementById('heatSubsidy').value=salarySettings.heatSubsidy;
+            document.getElementById('otherSubsidy').value=salarySettings.otherSubsidy;
+            calculateStats();renderRecords();renderSchedule();renderShiftList();loadBg();calculateSalary();
+            alert('数据恢复成功');
+        }catch(err){alert('备份文件格式错误')}
+    }
+    r.readAsText(f);
+})
+
+function init(){
+    document.getElementById('datePicker').value=formatDateForInput(selectedDate);
+    updateCategoryOptions(expenseCategories);
+    updateTimeRange();calculateStats();renderRecords();renderSchedule();loadBg();
+    document.getElementById('baseSalaryInput').value=salarySettings.baseSalary;
+    document.getElementById('workDaysInput').value=salarySettings.workDays;
+    document.getElementById('workHoursInput').value=salarySettings.workHours;
+    document.getElementById('nightSubsidy').value=salarySettings.nightSubsidy;
+    document.getElementById('fullAttendance').value=salarySettings.fullAttendance;
+    document.getElementById('rentSubsidy').value=salarySettings.rentSubsidy;
+    document.getElementById('mealSubsidy').value=salarySettings.mealSubsidy;
+    document.getElementById('trafficSubsidy').value=salarySettings.trafficSubsidy;
+    document.getElementById('heatSubsidy').value=salarySettings.heatSubsidy;
+    document.getElementById('otherSubsidy').value=salarySettings.otherSubsidy;
+    
+    // 初始化薪资页
+    updateSalaryMonthTitle();
+    calculateSalary();
+    
+    // 启动版本检测
+    checkUpdate();
+}
+
+init();
+})
+</script>
+</body>
+</html>
