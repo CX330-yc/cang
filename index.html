@@ -464,7 +464,7 @@
             padding: 5px;
             margin-left: 10px;
         }
-        /* 新增：薪资月份选择器样式 */
+        /* 薪资月份选择器样式 */
         .salary-month-head {
             display: flex;
             justify-content: space-between;
@@ -488,7 +488,7 @@
             font-weight: 500;
             color: #333;
         }
-        /* 新增：更新提示弹窗样式 */
+        /* 更新提示弹窗样式 */
         .update-popup {
             position: fixed;
             top: 50%;
@@ -539,7 +539,7 @@
 </head>
 <body>
     <div id="bgOverlay"></div>
-    <!-- 新增：更新提示弹窗 -->
+    <!-- 更新提示弹窗 -->
     <div class="update-popup" id="updatePopup">
         <h3>🎉 发现新版本</h3>
         <p id="updateDesc">有新功能上线，建议立即更新</p>
@@ -646,7 +646,7 @@
 </div>
 
 <div class="page" id="pageSalary">
-    <!-- 新增：薪资月份选择器 -->
+    <!-- 薪资月份选择器 -->
     <div class="salary-month-head">
         <button id="prevSalaryMonth">←</button>
         <div class="salary-month-title" id="salaryMonthTitle">2026年5月 薪资</div>
@@ -805,9 +805,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-// ====================== 新增：版本与更新配置 ======================
-const CURRENT_VERSION = "1.1.0"; // 每次更新改这个数字
-const VERSION_CHECK_URL = "https://cx330-yc.github.io/cang/"; // 替换成你的托管地址
+// ====================== 版本与更新配置 ======================
+const CURRENT_VERSION = "1.2.0"; // 已升级版本号
+const VERSION_CHECK_URL = "https://cx330-yc.github.io/cang/version.json"; // 已填好你的地址
 
 // 版本检测函数
 async function checkUpdate() {
@@ -820,7 +820,6 @@ async function checkUpdate() {
             document.getElementById('updatePopup').style.display = 'block';
         }
     } catch (e) {
-        // 没网或请求失败不提示，不影响使用
         console.log("版本检测失败，可能无网络");
     }
 }
@@ -845,15 +844,12 @@ let scheduleData = JSON.parse(localStorage.getItem('scheduleData') || '{}');
 let scheduleYear = new Date().getFullYear();
 let scheduleMonth = new Date().getMonth();
 
-// 新增：薪资页独立月份
+// 薪资页独立月份
 let salaryYear = new Date().getFullYear();
 let salaryMonth = new Date().getMonth();
 
 let selectDayNow = 0;
-let salarySettings = JSON.parse(localStorage.getItem('salarySettings') || JSON.stringify({
-    baseSalary: 6000,workDays:22,workHours:8,nightSubsidy:30,fullAttendance:200,
-    rentSubsidy:0,mealSubsidy:0,trafficSubsidy:0,heatSubsidy:0,otherSubsidy:0
-}));
+// 移除全局薪资设置，改为按月存储
 let shifts = JSON.parse(localStorage.getItem('customShifts') || JSON.stringify([
     {name:'休息',start:'',end:'',color:'#34c759'},
     {name:'白班',start:'08:00',end:'16:00',color:'#007aff'},
@@ -882,6 +878,7 @@ document.querySelectorAll('.tab-item').forEach(tab=>{
         if(p==='pageSchedule')renderSchedule();
         if(p==='pageSalary'){
             updateSalaryMonthTitle();
+            loadCurrentMonthSalarySettings(); // 加载当月薪资设置
             calculateSalary();
         }
         if(p==='pageSetting')renderShiftList();
@@ -1018,7 +1015,7 @@ function renderShiftOptions(){
     })
 }
 
-// 新增：通用获取指定月份班次统计函数
+// 通用获取指定月份班次统计函数
 function getMonthShiftStats(year, month) {
     let dayShiftDays=0, nightShiftDays=0;
     let totalDaysInMonth=new Date(year, month+1, 0).getDate();
@@ -1147,25 +1144,81 @@ document.getElementById('clearAllMonthShift').addEventListener('click',()=>{
     alert('✅ 本月班次已全部清空');
 })
 
-// ====================== 新增：薪资月份相关函数 ======================
+// ====================== 薪资按月独立存储核心逻辑 ======================
+// 获取当前月份的存储key
+function getCurrentMonthKey() {
+    return `salary_${salaryYear}-${salaryMonth+1}`;
+}
+
+// 加载当前月份的薪资设置到输入框
+function loadCurrentMonthSalarySettings() {
+    const key = getCurrentMonthKey();
+    let settings = JSON.parse(localStorage.getItem(key));
+    
+    // 如果当前月份没有设置，自动继承最近一个有设置的月份
+    if (!settings) {
+        // 从当前月份往前找，最多找12个月
+        for (let i = 0; i < 12; i++) {
+            let checkYear = salaryYear;
+            let checkMonth = salaryMonth - i;
+            if (checkMonth < 0) {
+                checkMonth = 11;
+                checkYear--;
+            }
+            const checkKey = `salary_${checkYear}-${checkMonth+1}`;
+            settings = JSON.parse(localStorage.getItem(checkKey));
+            if (settings) break;
+        }
+        
+        // 如果都没找到，用默认值
+        if (!settings) {
+            settings = {
+                baseSalary: 6000, workDays:22, workHours:8, nightSubsidy:30, fullAttendance:200,
+                rentSubsidy:0, mealSubsidy:0, trafficSubsidy:0, heatSubsidy:0, otherSubsidy:0
+            };
+        }
+    }
+    
+    // 把设置填充到输入框
+    document.getElementById('baseSalaryInput').value = settings.baseSalary;
+    document.getElementById('workDaysInput').value = settings.workDays;
+    document.getElementById('workHoursInput').value = settings.workHours;
+    document.getElementById('nightSubsidy').value = settings.nightSubsidy;
+    document.getElementById('fullAttendance').value = settings.fullAttendance;
+    document.getElementById('rentSubsidy').value = settings.rentSubsidy;
+    document.getElementById('mealSubsidy').value = settings.mealSubsidy;
+    document.getElementById('trafficSubsidy').value = settings.trafficSubsidy;
+    document.getElementById('heatSubsidy').value = settings.heatSubsidy;
+    document.getElementById('otherSubsidy').value = settings.otherSubsidy;
+}
+
+// 保存当前月份的薪资设置
+function saveCurrentMonthSalarySettings() {
+    const key = getCurrentMonthKey();
+    const settings = {
+        baseSalary: parseFloat(document.getElementById('baseSalaryInput').value) || 0,
+        workDays: parseFloat(document.getElementById('workDaysInput').value) || 22,
+        workHours: parseFloat(document.getElementById('workHoursInput').value) || 8,
+        nightSubsidy: parseFloat(document.getElementById('nightSubsidy').value) || 0,
+        fullAttendance: parseFloat(document.getElementById('fullAttendance').value) || 0,
+        rentSubsidy: parseFloat(document.getElementById('rentSubsidy').value) || 0,
+        mealSubsidy: parseFloat(document.getElementById('mealSubsidy').value) || 0,
+        trafficSubsidy: parseFloat(document.getElementById('trafficSubsidy').value) || 0,
+        heatSubsidy: parseFloat(document.getElementById('heatSubsidy').value) || 0,
+        otherSubsidy: parseFloat(document.getElementById('otherSubsidy').value) || 0
+    };
+    localStorage.setItem(key, JSON.stringify(settings));
+    return settings;
+}
+
 function updateSalaryMonthTitle() {
     document.getElementById('salaryMonthTitle').innerText=`${salaryYear}年${salaryMonth+1}月 薪资`;
 }
 
-// 重写薪资计算函数，支持指定年月
+// 重写薪资计算函数，使用当月独立设置
 function calculateSalary(){
-    salarySettings.baseSalary=parseFloat(document.getElementById('baseSalaryInput').value)||0;
-    salarySettings.workDays=parseFloat(document.getElementById('workDaysInput').value)||22;
-    salarySettings.workHours=parseFloat(document.getElementById('workHoursInput').value)||8;
-    salarySettings.nightSubsidy=parseFloat(document.getElementById('nightSubsidy').value)||0;
-    salarySettings.fullAttendance=parseFloat(document.getElementById('fullAttendance').value)||0;
-    salarySettings.rentSubsidy=parseFloat(document.getElementById('rentSubsidy').value)||0;
-    salarySettings.mealSubsidy=parseFloat(document.getElementById('mealSubsidy').value)||0;
-    salarySettings.trafficSubsidy=parseFloat(document.getElementById('trafficSubsidy').value)||0;
-    salarySettings.heatSubsidy=parseFloat(document.getElementById('heatSubsidy').value)||0;
-    salarySettings.otherSubsidy=parseFloat(document.getElementById('otherSubsidy').value)||0;
-    
-    localStorage.setItem('salarySettings',JSON.stringify(salarySettings));
+    // 先保存当前月份的设置
+    const salarySettings = saveCurrentMonthSalarySettings();
     
     let daily=salarySettings.baseSalary/salarySettings.workDays;
     let hourly=daily/salarySettings.workHours;
@@ -1192,6 +1245,7 @@ document.getElementById('prevSalaryMonth').addEventListener('click',()=>{
     salaryMonth--;
     if(salaryMonth<0){salaryMonth=11;salaryYear--;}
     updateSalaryMonthTitle();
+    loadCurrentMonthSalarySettings(); // 切换月份自动加载对应设置
     calculateSalary();
 })
 
@@ -1199,6 +1253,7 @@ document.getElementById('nextSalaryMonth').addEventListener('click',()=>{
     salaryMonth++;
     if(salaryMonth>11){salaryMonth=0;salaryYear++;}
     updateSalaryMonthTitle();
+    loadCurrentMonthSalarySettings(); // 切换月份自动加载对应设置
     calculateSalary();
 })
 // =================================================================
@@ -1303,9 +1358,19 @@ document.getElementById('resetBgBtn').addEventListener('click',()=>{
 })
 
 document.getElementById('backupBtn').addEventListener('click',()=>{
+    // 备份时自动包含所有月份的薪资设置
+    let allSalarySettings = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('salary_')) {
+            allSalarySettings[key] = JSON.parse(localStorage.getItem(key));
+        }
+    }
+    
     let all={
         time:new Date().toLocaleString(),
-        account:records,schedule:scheduleData,shifts:shifts,salary:salarySettings,
+        account:records,schedule:scheduleData,shifts:shifts,
+        allSalary: allSalarySettings, // 备份所有月份薪资
         bg:localStorage.getItem('customBackground'),bgOp:localStorage.getItem('bgOpacity')
     }
     let str=JSON.stringify(all,null,2);
@@ -1324,24 +1389,24 @@ document.getElementById('fileRestore').addEventListener('change',e=>{
     r.onload=res=>{
         try{
             let d=JSON.parse(res.target.result);
-            records=d.account||[];scheduleData=d.schedule||{};shifts=d.shifts||shifts;salarySettings=d.salary||salarySettings;
+            records=d.account||[];scheduleData=d.schedule||{};shifts=d.shifts||shifts;
+            
+            // 恢复所有月份的薪资设置
+            if (d.allSalary) {
+                for (const key in d.allSalary) {
+                    localStorage.setItem(key, JSON.stringify(d.allSalary[key]));
+                }
+            }
+            
             if(d.bg)localStorage.setItem('customBackground',d.bg);
             if(d.bgOp)localStorage.setItem('bgOpacity',d.bgOp);
             localStorage.setItem('accountRecords',JSON.stringify(records));
             localStorage.setItem('scheduleData',JSON.stringify(scheduleData));
             localStorage.setItem('customShifts',JSON.stringify(shifts));
-            localStorage.setItem('salarySettings',JSON.stringify(salarySettings));
-            document.getElementById('baseSalaryInput').value=salarySettings.baseSalary;
-            document.getElementById('workDaysInput').value=salarySettings.workDays;
-            document.getElementById('workHoursInput').value=salarySettings.workHours;
-            document.getElementById('nightSubsidy').value=salarySettings.nightSubsidy;
-            document.getElementById('fullAttendance').value=salarySettings.fullAttendance;
-            document.getElementById('rentSubsidy').value=salarySettings.rentSubsidy;
-            document.getElementById('mealSubsidy').value=salarySettings.mealSubsidy;
-            document.getElementById('trafficSubsidy').value=salarySettings.trafficSubsidy;
-            document.getElementById('heatSubsidy').value=salarySettings.heatSubsidy;
-            document.getElementById('otherSubsidy').value=salarySettings.otherSubsidy;
-            calculateStats();renderRecords();renderSchedule();renderShiftList();loadBg();calculateSalary();
+            
+            calculateStats();renderRecords();renderSchedule();renderShiftList();loadBg();
+            loadCurrentMonthSalarySettings();
+            calculateSalary();
             alert('数据恢复成功');
         }catch(err){alert('备份文件格式错误')}
     }
@@ -1352,19 +1417,10 @@ function init(){
     document.getElementById('datePicker').value=formatDateForInput(selectedDate);
     updateCategoryOptions(expenseCategories);
     updateTimeRange();calculateStats();renderRecords();renderSchedule();loadBg();
-    document.getElementById('baseSalaryInput').value=salarySettings.baseSalary;
-    document.getElementById('workDaysInput').value=salarySettings.workDays;
-    document.getElementById('workHoursInput').value=salarySettings.workHours;
-    document.getElementById('nightSubsidy').value=salarySettings.nightSubsidy;
-    document.getElementById('fullAttendance').value=salarySettings.fullAttendance;
-    document.getElementById('rentSubsidy').value=salarySettings.rentSubsidy;
-    document.getElementById('mealSubsidy').value=salarySettings.mealSubsidy;
-    document.getElementById('trafficSubsidy').value=salarySettings.trafficSubsidy;
-    document.getElementById('heatSubsidy').value=salarySettings.heatSubsidy;
-    document.getElementById('otherSubsidy').value=salarySettings.otherSubsidy;
     
     // 初始化薪资页
     updateSalaryMonthTitle();
+    loadCurrentMonthSalarySettings();
     calculateSalary();
     
     // 启动版本检测
