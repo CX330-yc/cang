@@ -108,6 +108,11 @@
         .stats-grid p:last-child {
             font-size: 20px;
             font-weight: bold;
+            /* 修复数字超出边框 */
+            word-break: break-all;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .dimension-switch,.type-switch {
             display:flex;
@@ -295,6 +300,8 @@
         .salary-result .total {
             font-size: 32px;
             font-weight: bold;
+            /* 修复薪资数字超出 */
+            word-break: break-all;
         }
         .salary-detail {
             display: grid;
@@ -535,9 +542,21 @@
             background: #eee;
             color: #666;
         }
+        /* 手动检查更新按钮样式 */
+        .check-update-btn {
+            width: 100%;
+            padding: 14px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
     </style>
-</head>
-<body>
+</head><body>
     <div id="bgOverlay"></div>
     <!-- 更新提示弹窗 -->
     <div class="update-popup" id="updatePopup">
@@ -548,7 +567,6 @@
             <button class="update-btn update-now" id="updateNow">立即更新</button>
         </div>
     </div>
-
 <div class="page active" id="pageSchedule">
     <div class="schedule-card">
         <div class="schedule-head">
@@ -587,7 +605,6 @@
     </div>
     <button class="save-btn" style="margin-top:15px;background:#ff4444" id="clearAllMonthShift">一键清空本月所有班次</button>
 </div>
-
 <div class="page" id="pageAccount">
     <div class="header-card">
         <h2>💰 我的记账本</h2>
@@ -644,7 +661,6 @@
         </div>
     </div>
 </div>
-
 <div class="page" id="pageSalary">
     <!-- 薪资月份选择器 -->
     <div class="salary-month-head">
@@ -652,7 +668,6 @@
         <div class="salary-month-title" id="salaryMonthTitle">2026年5月 薪资</div>
         <button id="nextSalaryMonth">→</button>
     </div>
-
     <div class="salary-result">
         <h3>本月预计薪资</h3>
         <div class="total" id="totalSalary">¥0.00</div>
@@ -725,7 +740,6 @@
         <button class="save-btn" style="margin-top: 16px;" id="calculateSalaryBtn">重新计算薪资</button>
     </div>
 </div>
-
 <div class="page" id="pageBackup">
     <div class="card">
         <h3 class="font-bold text-lg mb-4">💾 数据备份与恢复</h3>
@@ -739,7 +753,6 @@
         </p>
     </div>
 </div>
-
 <div class="page" id="pageSetting">
     <div class="card">
         <h3 class="font-bold text-lg mb-4">⚙️ 个性化设置</h3>
@@ -756,9 +769,10 @@
         <h4 class="font-bold mt-4 mb-3">班次管理</h4>
         <div id="shiftList"></div>
         <button class="setting-btn" id="addShiftBtn" style="width:100%;">+ 添加新班次</button>
+        <!-- 新增：手动检查更新按钮 -->
+        <button class="check-update-btn" id="checkUpdateBtn">🔄 检查更新</button>
     </div>
 </div>
-
 <div class="popup" id="shiftPopup">
     <div class="popup-content">
         <button class="close-btn" id="closeShiftPopup">✕</button>
@@ -770,7 +784,6 @@
         <div id="shiftOptions"></div>
     </div>
 </div>
-
 <div class="popup" id="editShiftPopup">
     <div class="popup-content">
         <div class="popup-title" id="editShiftTitle">编辑班次</div>
@@ -794,23 +807,19 @@
         <button class="save-btn" id="saveShiftBtn">保存</button>
     </div>
 </div>
-
 <div class="tab-bar">
     <div class="tab-item active" data-page="pageSchedule">排班</div>
     <div class="tab-item" data-page="pageAccount">记账</div>
     <div class="tab-item" data-page="pageSalary">工资</div>
     <div class="tab-item" data-page="pageBackup">备份</div>
     <div class="tab-item" data-page="pageSetting">设置</div>
-</div>
-
-<script>
+</div><script>
 document.addEventListener('DOMContentLoaded', function() {
 // ====================== 版本与更新配置 ======================
-const CURRENT_VERSION = "1.2.0"; // 已升级版本号
-const VERSION_CHECK_URL = "https://cx330-yc.github.io/cang/version.json"; // 已填好你的地址
-
+const CURRENT_VERSION = "1.2.1"; // 已升级版本号（记得每次更新都要改这个）
+const VERSION_CHECK_URL = "https://cx330-yc.github.io/cang/version.json"; // 你的GitHub地址
 // 版本检测函数
-async function checkUpdate() {
+async function checkUpdate(manualCheck = false) {
     try {
         const response = await fetch(VERSION_CHECK_URL + '?t=' + Date.now(), {cache: 'no-store'});
         const data = await response.json();
@@ -818,36 +827,39 @@ async function checkUpdate() {
         if (data.version > CURRENT_VERSION) {
             document.getElementById('updateDesc').textContent = data.desc || "有新功能上线，建议立即更新";
             document.getElementById('updatePopup').style.display = 'block';
+        } else if (manualCheck) {
+            alert("✅ 当前已是最新版本 v" + CURRENT_VERSION);
         }
     } catch (e) {
+        if (manualCheck) {
+            alert("❌ 检查更新失败，请检查网络连接");
+        }
         console.log("版本检测失败，可能无网络");
     }
 }
-
 // 更新按钮事件
 document.getElementById('updateNow').addEventListener('click', () => {
     location.reload(true); // 强制刷新
 });
-
 document.getElementById('updateLater').addEventListener('click', () => {
     document.getElementById('updatePopup').style.display = 'none';
 });
+// 手动检查更新按钮事件
+document.getElementById('checkUpdateBtn').addEventListener('click', () => {
+    checkUpdate(true);
+});
 // =================================================================
-
 let currentType = 'expense';
 let currentDimension = 'day';
 let selectedDate = new Date();
 let records = JSON.parse(localStorage.getItem('accountRecords') || '[]');
 let scheduleData = JSON.parse(localStorage.getItem('scheduleData') || '{}');
-
 // 排班页月份
 let scheduleYear = new Date().getFullYear();
 let scheduleMonth = new Date().getMonth();
-
 // 薪资页独立月份
 let salaryYear = new Date().getFullYear();
 let salaryMonth = new Date().getMonth();
-
 let selectDayNow = 0;
 // 移除全局薪资设置，改为按月存储
 let shifts = JSON.parse(localStorage.getItem('customShifts') || JSON.stringify([
@@ -867,7 +879,6 @@ const incomeCategories = [
     {value:'兼职',label:'💻兼职'},{value:'投资',label:'📈投资'},
     {value:'红包',label:'🧧红包'},{value:'其他',label:'📦其他'}
 ];
-
 document.querySelectorAll('.tab-item').forEach(tab=>{
     tab.addEventListener('click',()=>{
         let p=tab.dataset.page;
@@ -884,12 +895,10 @@ document.querySelectorAll('.tab-item').forEach(tab=>{
         if(p==='pageSetting')renderShiftList();
     })
 })
-
 function formatDateForInput(date){
     let y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
     return `${y}-${m}-${d}`;
 }
-
 function updateCategoryOptions(list){
     let sel=document.getElementById('category');
     sel.innerHTML='';
@@ -898,7 +907,6 @@ function updateCategoryOptions(list){
         o.value=c.value;o.textContent=c.label;sel.appendChild(o);
     })
 }
-
 function updateTimeRange(){
     let y=selectedDate.getFullYear(),m=selectedDate.getMonth()+1,d=selectedDate.getDate();
     if(currentDimension==='day'){
@@ -912,20 +920,17 @@ function updateTimeRange(){
         document.getElementById('recordsTitle').textContent=`📋 ${y}年 记录`;
     }
 }
-
 function isRecordInRange(d){
     let r=new Date(d),s=selectedDate;
     if(currentDimension==='day')return r.getFullYear()==s.getFullYear()&&r.getMonth()==s.getMonth()&&r.getDate()==s.getDate();
     if(currentDimension==='month')return r.getFullYear()==s.getFullYear()&&r.getMonth()==s.getMonth();
     return r.getFullYear()==s.getFullYear();
 }
-
 function updateDimensionButtons(){
     document.getElementById('dayBtn').classList.toggle('active',currentDimension==='day');
     document.getElementById('monthBtn').classList.toggle('active',currentDimension==='month');
     document.getElementById('yearBtn').classList.toggle('active',currentDimension==='year');
 }
-
 function calculateStats(){
     let f=records.filter(x=>isRecordInRange(x.date));
     let inco=0,exp=0;
@@ -936,7 +941,6 @@ function calculateStats(){
     document.getElementById('totalBalance').textContent=`¥${bal.toFixed(2)}`;
     document.getElementById('totalBalance').style.color=bal<0?'#ef4444':'#fff';
 }
-
 function renderRecords(){
     let list=document.getElementById('recordsList');
     let f=records.filter(x=>isRecordInRange(x.date));
@@ -966,43 +970,55 @@ function renderRecords(){
         })
     })
 }
-
 document.getElementById('expenseBtn').addEventListener('click',()=>{
     currentType='expense';
     document.getElementById('expenseBtn').classList.add('active');
     document.getElementById('incomeBtn').classList.remove('active');
     updateCategoryOptions(expenseCategories);
 })
-
 document.getElementById('incomeBtn').addEventListener('click',()=>{
     currentType='income';
     document.getElementById('incomeBtn').classList.add('active');
     document.getElementById('expenseBtn').classList.remove('active');
     updateCategoryOptions(incomeCategories);
 })
-
 document.getElementById('dayBtn').addEventListener('click',()=>{currentDimension='day';updateDimensionButtons();updateTimeRange();calculateStats();renderRecords()})
 document.getElementById('monthBtn').addEventListener('click',()=>{currentDimension='month';updateDimensionButtons();updateTimeRange();calculateStats();renderRecords()})
 document.getElementById('yearBtn').addEventListener('click',()=>{currentDimension='year';updateDimensionButtons();updateTimeRange();calculateStats();renderRecords()})
-
 document.getElementById('datePicker').addEventListener('change',(e)=>{selectedDate=new Date(e.target.value);updateTimeRange();calculateStats();renderRecords()})
 document.getElementById('todayBtn').addEventListener('click',()=>{selectedDate=new Date();document.getElementById('datePicker').value=formatDateForInput(selectedDate);updateTimeRange();calculateStats();renderRecords()})
-
+// ====================== 修复记账日期bug ======================
 document.getElementById('saveBtn').addEventListener('click',()=>{
     let num=parseFloat(document.getElementById('amount').value);
     let cat=document.getElementById('category').value;
     let note=document.getElementById('note').value.trim();
     if(isNaN(num)||num<=0){alert('请输入有效金额');return;}
-    let obj={id:Date.now(),type:currentType,amount:num,category:cat,note:note,date:new Date().toLocaleString()};
+    
+    // 关键修复：使用用户选择的日期，而不是当前日期
+    // 保留当前时间的时分秒，只替换年月日
+    let now = new Date();
+    let recordDate = new Date(selectedDate);
+    recordDate.setHours(now.getHours());
+    recordDate.setMinutes(now.getMinutes());
+    recordDate.setSeconds(now.getSeconds());
+    
+    let obj={
+        id:Date.now(),
+        type:currentType,
+        amount:num,
+        category:cat,
+        note:note,
+        date:recordDate.toLocaleString() // 使用选择的日期
+    };
     records.unshift(obj);
     localStorage.setItem('accountRecords',JSON.stringify(records));
     document.getElementById('amount').value='';document.getElementById('note').value='';
     renderRecords();calculateStats();
+    alert('✅ 记录已保存到 ' + recordDate.toLocaleDateString());
 })
-
+// =================================================================
 const shiftPopup = document.getElementById('shiftPopup');
 const shiftOptionsContainer = document.getElementById('shiftOptions');
-
 function renderShiftOptions(){
     shiftOptionsContainer.innerHTML='';
     shifts.forEach(shift=>{
@@ -1014,7 +1030,6 @@ function renderShiftOptions(){
         shiftOptionsContainer.appendChild(div);
     })
 }
-
 // 通用获取指定月份班次统计函数
 function getMonthShiftStats(year, month) {
     let dayShiftDays=0, nightShiftDays=0;
@@ -1029,7 +1044,6 @@ function getMonthShiftStats(year, month) {
     
     return { dayShiftDays, nightShiftDays };
 }
-
 function calculateShiftStats(){
     let totalDays=0,dayShiftDays=0,nightShiftDays=0,restDays=0;
     let totalDaysInMonth=new Date(scheduleYear,scheduleMonth+1,0).getDate();
@@ -1048,11 +1062,9 @@ function calculateShiftStats(){
     document.getElementById('nightShiftDays').textContent=nightShiftDays;
     document.getElementById('restDays').textContent=restDays;
 }
-
 function updatePopupTitle(){
     document.querySelector('#shiftPopup .popup-title').textContent=`选择 ${scheduleMonth+1}月${selectDayNow}日 班次`;
 }
-
 function renderSchedule(){
     document.getElementById('scheduleTitle').innerText=`${scheduleYear}年${scheduleMonth+1}月`;
     let firstDay=new Date(scheduleYear,scheduleMonth,1).getDay();
@@ -1085,7 +1097,6 @@ function renderSchedule(){
     }
     calculateShiftStats();
 }
-
 shiftOptionsContainer.addEventListener('click',function(e){
     let item=e.target.closest('.shift-option');
     if(!item)return;
@@ -1103,35 +1114,29 @@ shiftOptionsContainer.addEventListener('click',function(e){
         shiftPopup.classList.remove('show');
     }
 })
-
 document.getElementById('prevDayBtn').addEventListener('click',()=>{
     selectDayNow--;
     if(selectDayNow<1)selectDayNow=1;
     updatePopupTitle();renderShiftOptions();
 })
-
 document.getElementById('nextDayBtn').addEventListener('click',()=>{
     let max=new Date(scheduleYear,scheduleMonth+1,0).getDate();
     selectDayNow++;
     if(selectDayNow>max)selectDayNow=max;
     updatePopupTitle();renderShiftOptions();
 })
-
 document.getElementById('prevMonth').addEventListener('click',()=>{
     scheduleMonth--;
     if(scheduleMonth<0){scheduleMonth=11;scheduleYear--;}
     renderSchedule();
 })
-
 document.getElementById('nextMonth').addEventListener('click',()=>{
     scheduleMonth++;
     if(scheduleMonth>11){scheduleMonth=0;scheduleYear++;}
     renderSchedule();
 })
-
 document.getElementById('closeShiftPopup').addEventListener('click',()=>shiftPopup.classList.remove('show'));
 shiftPopup.addEventListener('click',e=>{if(e.target===shiftPopup)shiftPopup.classList.remove('show')});
-
 document.getElementById('clearAllMonthShift').addEventListener('click',()=>{
     if(!confirm('确定清空本月所有班次？不可恢复！'))return;
     let max=new Date(scheduleYear,scheduleMonth+1,0).getDate();
@@ -1143,13 +1148,11 @@ document.getElementById('clearAllMonthShift').addEventListener('click',()=>{
     renderSchedule();
     alert('✅ 本月班次已全部清空');
 })
-
 // ====================== 薪资按月独立存储核心逻辑 ======================
 // 获取当前月份的存储key
 function getCurrentMonthKey() {
     return `salary_${salaryYear}-${salaryMonth+1}`;
 }
-
 // 加载当前月份的薪资设置到输入框
 function loadCurrentMonthSalarySettings() {
     const key = getCurrentMonthKey();
@@ -1191,7 +1194,6 @@ function loadCurrentMonthSalarySettings() {
     document.getElementById('heatSubsidy').value = settings.heatSubsidy;
     document.getElementById('otherSubsidy').value = settings.otherSubsidy;
 }
-
 // 保存当前月份的薪资设置
 function saveCurrentMonthSalarySettings() {
     const key = getCurrentMonthKey();
@@ -1210,11 +1212,9 @@ function saveCurrentMonthSalarySettings() {
     localStorage.setItem(key, JSON.stringify(settings));
     return settings;
 }
-
 function updateSalaryMonthTitle() {
     document.getElementById('salaryMonthTitle').innerText=`${salaryYear}年${salaryMonth+1}月 薪资`;
 }
-
 // 重写薪资计算函数，使用当月独立设置
 function calculateSalary(){
     // 先保存当前月份的设置
@@ -1239,7 +1239,6 @@ function calculateSalary(){
     document.getElementById('totalSubsidy').textContent=`¥${allSub.toFixed(2)}`;
     document.getElementById('totalSalary').textContent=`¥${total.toFixed(2)}`;
 }
-
 // 薪资页月份切换事件
 document.getElementById('prevSalaryMonth').addEventListener('click',()=>{
     salaryMonth--;
@@ -1248,7 +1247,6 @@ document.getElementById('prevSalaryMonth').addEventListener('click',()=>{
     loadCurrentMonthSalarySettings(); // 切换月份自动加载对应设置
     calculateSalary();
 })
-
 document.getElementById('nextSalaryMonth').addEventListener('click',()=>{
     salaryMonth++;
     if(salaryMonth>11){salaryMonth=0;salaryYear++;}
@@ -1257,9 +1255,7 @@ document.getElementById('nextSalaryMonth').addEventListener('click',()=>{
     calculateSalary();
 })
 // =================================================================
-
 document.getElementById('calculateSalaryBtn').addEventListener('click',calculateSalary);
-
 let editingShiftIndex=-1;
 function renderShiftList(){
     let box=document.getElementById('shiftList');
@@ -1296,7 +1292,6 @@ function renderShiftList(){
         })
     })
 }
-
 document.getElementById('addShiftBtn').addEventListener('click',()=>{
     editingShiftIndex=-1;
     document.getElementById('editShiftTitle').textContent='添加新班次';
@@ -1306,7 +1301,6 @@ document.getElementById('addShiftBtn').addEventListener('click',()=>{
     document.getElementById('editShiftColor').value='#007aff';
     document.getElementById('editShiftPopup').classList.add('show');
 })
-
 document.getElementById('saveShiftBtn').addEventListener('click',()=>{
     let name=document.getElementById('editShiftName').value.trim();
     let st=document.getElementById('editShiftStart').value;
@@ -1320,10 +1314,8 @@ document.getElementById('saveShiftBtn').addEventListener('click',()=>{
     document.getElementById('editShiftPopup').classList.remove('show');
     renderShiftList();renderShiftOptions();renderSchedule();
 })
-
 document.getElementById('closeEditPopup').addEventListener('click',()=>document.getElementById('editShiftPopup').classList.remove('show'));
 document.getElementById('editShiftPopup').addEventListener('click',e=>{if(e.target===document.getElementById('editShiftPopup'))document.getElementById('editShiftPopup').classList.remove('show')});
-
 function loadBg(){
     let bg=localStorage.getItem('customBackground');
     let op=localStorage.getItem('bgOpacity')||15;
@@ -1331,7 +1323,6 @@ function loadBg(){
     document.getElementById('bgOverlay').style.opacity=op/100;
     document.getElementById('bgOpacity').value=op;
 }
-
 document.getElementById('selectBgBtn').addEventListener('click',()=>document.getElementById('bgFile').click());
 document.getElementById('bgFile').addEventListener('change',e=>{
     let f=e.target.files[0];if(!f)return;
@@ -1344,19 +1335,16 @@ document.getElementById('bgFile').addEventListener('change',e=>{
     }
     r.readAsDataURL(f);
 })
-
 document.getElementById('bgOpacity').addEventListener('input',e=>{
     let v=e.target.value;
     document.getElementById('bgOverlay').style.opacity=v/100;
     localStorage.setItem('bgOpacity',v);
 })
-
 document.getElementById('resetBgBtn').addEventListener('click',()=>{
     document.getElementById('bgOverlay').style.backgroundImage='';
     localStorage.removeItem('customBackground');
     alert('已恢复默认背景');
 })
-
 document.getElementById('backupBtn').addEventListener('click',()=>{
     // 备份时自动包含所有月份的薪资设置
     let allSalarySettings = {};
@@ -1381,7 +1369,6 @@ document.getElementById('backupBtn').addEventListener('click',()=>{
     a.click();URL.revokeObjectURL(url);
     alert('备份完成');
 })
-
 document.getElementById('restoreBtn').addEventListener('click',()=>document.getElementById('fileRestore').click());
 document.getElementById('fileRestore').addEventListener('change',e=>{
     let f=e.target.files[0];if(!f)return;
@@ -1412,7 +1399,6 @@ document.getElementById('fileRestore').addEventListener('change',e=>{
     }
     r.readAsText(f);
 })
-
 function init(){
     document.getElementById('datePicker').value=formatDateForInput(selectedDate);
     updateCategoryOptions(expenseCategories);
@@ -1423,10 +1409,9 @@ function init(){
     loadCurrentMonthSalarySettings();
     calculateSalary();
     
-    // 启动版本检测
-    checkUpdate();
+    // 启动自动版本检测
+    checkUpdate(false);
 }
-
 init();
 })
 </script>
